@@ -71,8 +71,7 @@ class SpinWheelGUI(ctk.CTk):
         self.spin_button = ctk.CTkButton(wheel_frame, text="SPINN HJULET 🎉", command=self.spinn_hjul)
         self.spin_button.pack(pady=10)
 
-        # Justert hjulstørrelse
-        self.canvas_size = 700
+        self.canvas_size = 500
         self.canvas_padding = 20
         self.wheel_canvas = tk.Canvas(wheel_frame, width=self.canvas_size, height=self.canvas_size,
                                       bg="#323333", highlightthickness=0)
@@ -283,18 +282,12 @@ class SpinWheelGUI(ctk.CTk):
                                          center + 15, base_y,
                                          fill="red", outline="black", width=3)
 
-
-    # ... videre følger spinnehjul, konfetti og lagre/last funksjoner som vi har lagt inn tidligere
-
     def spinn_hjul(self):
         if self.spinning:
             return
         if not self.navn_liste:
             self.result_label.configure(text="Ingen navn på hjulet!")
             return
-
-        # Nullstill teksten først når du spinner på nytt
-        self.result_label.configure(text="")
 
         self.spinning = True
         self.spin_button.configure(state="disabled")
@@ -322,7 +315,6 @@ class SpinWheelGUI(ctk.CTk):
 
         vinner = self.navn_liste[winning_index]
         self.siste_vinner = vinner
-        # Teksten blir stående til neste spinn
         self.result_label.configure(text=f"🎉 Vinneren er: {vinner}!")
 
         self.vis_konfetti()
@@ -382,7 +374,7 @@ class SpinWheelGUI(ctk.CTk):
             self.vis_siste_vinner(self.siste_vinner)
 
         self.siste_vinner = None
-        # Ikke nullstill result_label her!
+        self.result_label.configure(text="")
         self.spinning = False
         self.spin_button.configure(state="normal")
 
