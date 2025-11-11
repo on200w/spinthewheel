@@ -13,7 +13,7 @@ SEGMENT_FARGER = [
 class SpinWheelGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Spin the Wheel 🎡")
+        self.root.title("Spin the Wheel 🛞")
 
         os.makedirs(KLASSEMAPPE, exist_ok=True)
 

@@ -7,7 +7,7 @@ KLASSEMAPPE = "klasser"
 class SpinWheelGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Spin the Wheel 🎡")
+        self.root.title("Spin the Wheel 🛞")
         self.root.configure(bg="#f5f7fa")
 
         os.makedirs(KLASSEMAPPE, exist_ok=True)

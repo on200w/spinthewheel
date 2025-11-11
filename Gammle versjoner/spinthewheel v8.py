@@ -1,9 +1,6 @@
 import importlib
 import subprocess
 import sys
-import os
-import random, math, time, json
-import tkinter as tk
 
 # Sjekk og installer nødvendige pakker
 REQUIRED_PACKAGES = ["customtkinter"]
@@ -15,19 +12,23 @@ def ensure_packages():
         except ImportError:
             print(f"Pakke '{pkg}' mangler. Installerer...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
-            os.execv(sys.executable, [sys.executable] + sys.argv)
 
 ensure_packages()
+
 import customtkinter as ctk
+import tkinter as tk
+import random, math, time, json, os
 
 KLASSEMAPPE = "klasser"
 
 class SpinWheelGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Spin the Wheel 🛞")
+        self.title("Spin the Wheel 🎡")
+
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
+
         os.makedirs(KLASSEMAPPE, exist_ok=True)
 
         self.klasse = None
@@ -46,8 +47,8 @@ class SpinWheelGUI(ctk.CTk):
                                              command=self.bytt_klasse)
         self.klasse_menu.pack(side="left", padx=5)
 
-        ctk.CTkButton(top_frame, text="Administrer klasser", command=self.klasse_admin_vindu).pack(side="left", padx=5)
-        ctk.CTkButton(top_frame, text="Reset hjulet", command=self.reset_klasse).pack(side="left", padx=5)
+        ctk.CTkButton(top_frame, text="Administrer klasse", command=self.klasse_admin_vindu).pack(side="left", padx=5)
+        ctk.CTkButton(top_frame, text="Reset klasse", command=self.reset_klasse).pack(side="left", padx=5)
 
         # Hovedramme
         main_frame = ctk.CTkFrame(self, fg_color="#323333")
@@ -73,55 +74,63 @@ class SpinWheelGUI(ctk.CTk):
 
         self.canvas_size = 500
         self.canvas_padding = 20
-        self.wheel_canvas = tk.Canvas(wheel_frame, width=self.canvas_size, height=self.canvas_size,
-                                      bg="#323333", highlightthickness=0)
+
+        self.wheel_canvas = tk.Canvas(
+            wheel_frame,
+            width=self.canvas_size,
+            height=self.canvas_size,
+            bg="#323333",
+            highlightthickness=0
+        )
         self.wheel_canvas.pack(expand=True)
 
         self.angle_offset = 0.0
         self.tegn_hjul()
+
         self.after(100, lambda: self.state("zoomed"))
 
     # ---------- Klasseadministrasjon ----------
     def klasse_admin_vindu(self):
         popup = ctk.CTkToplevel(self)
         popup.title("Klasseadministrasjon")
-        w, h = 500, 700
+
+        # Størrelse og plassering midt på skjermen
+        w, h = 650, 700
         ws, hs = popup.winfo_screenwidth(), popup.winfo_screenheight()
         x, y = (ws // 2) - (w // 2), (hs // 2) - (h // 2)
         popup.geometry(f"{w}x{h}+{x}+{y}")
 
-        # Øverste rad: nedtrekksmeny + opprett ny klasse
-        top_row = ctk.CTkFrame(popup)
-        top_row.pack(pady=10, fill="x")
-
+        # Nedtrekksmeny med eksisterende klasser
         klasse_var = tk.StringVar(value="Velg klasse")
-        klasse_menu = ctk.CTkOptionMenu(top_row, variable=klasse_var,
+        klasse_menu = ctk.CTkOptionMenu(popup, variable=klasse_var,
                                         values=self.hent_klasser() or ["Velg klasse"])
-        klasse_menu.pack(side="left", padx=5)
+        klasse_menu.pack(pady=10)
 
+        # Felt for klassenavn rett under menyen
+        klasse_entry = ctk.CTkEntry(popup, placeholder_text="Klassenavn")
+        klasse_entry.pack(pady=10)
+
+        # Knapp for å opprette ny klasse
         def opprett_ny_klasse():
             klasse_entry.delete(0, tk.END)
             navn_listbox.delete(0, tk.END)
             klasse_var.set("Velg klasse")
-            status_label.configure(text="Ny klasse opprettet – skriv inn navn og lagre.")
-        ctk.CTkButton(top_row, text="Opprett ny klasse", command=opprett_ny_klasse).pack(side="left", padx=5)
 
-        ctk.CTkLabel(popup, text="Skriv inn nytt klassenavn eller rediger eksisterende:",
-                     font=("Segoe UI", 12)).pack()
-        klasse_entry = ctk.CTkEntry(popup, placeholder_text="Klassenavn")
-        klasse_entry.pack(pady=10)
+        ctk.CTkButton(popup, text="Opprett ny klasse", command=opprett_ny_klasse).pack(pady=5)
 
+        # Liste over navn med scrollbar
         list_frame = ctk.CTkFrame(popup)
         list_frame.pack(pady=10, fill="both", expand=True)
+
         scrollbar = tk.Scrollbar(list_frame)
         scrollbar.pack(side="right", fill="y")
+
         navn_listbox = tk.Listbox(list_frame, font=("Segoe UI", 12), height=15, width=30,
                                   bg="#3A3A3A", fg="white", highlightthickness=0, bd=0,
                                   yscrollcommand=scrollbar.set)
         navn_listbox.pack(side="left", fill="both", expand=True)
         scrollbar.config(command=navn_listbox.yview)
 
-        ctk.CTkLabel(popup, text="Legg til nytt navn i klassen:", font=("Segoe UI", 12)).pack()
         navn_entry = ctk.CTkEntry(popup, placeholder_text="Legg til navn")
         navn_entry.pack(pady=5)
 
@@ -133,7 +142,7 @@ class SpinWheelGUI(ctk.CTk):
             navn_listbox.delete(0, tk.END)
             for n in self.last_navn(valgt):
                 navn_listbox.insert(tk.END, n)
-            status_label.configure(text=f"Klassen '{valgt}' lastet.")
+
         klasse_menu.configure(command=last_valgt_klasse)
 
         def legg_til():
@@ -141,14 +150,11 @@ class SpinWheelGUI(ctk.CTk):
             if navn:
                 navn_listbox.insert(tk.END, navn)
                 navn_entry.delete(0, tk.END)
-                status_label.configure(text=f"Navn '{navn}' lagt til.")
 
         def fjern():
             valgt = navn_listbox.curselection()
             if valgt:
-                fjernet = navn_listbox.get(valgt[0])
                 navn_listbox.delete(valgt[0])
-                status_label.configure(text=f"Navn '{fjernet}' fjernet.")
 
         def lagre():
             klasse = klasse_entry.get().strip()
@@ -160,55 +166,30 @@ class SpinWheelGUI(ctk.CTk):
                 self.oppdater_listbox()
                 self.tegn_hjul()
                 self.klasse_menu.configure(values=self.hent_klasser())
-                status_label.configure(text=f"Klassen '{klasse}' lagret.")
             popup.destroy()
 
         def slett_klasse():
             klasse = klasse_entry.get().strip()
             if klasse:
-                confirm = ctk.CTkToplevel(popup)
-                confirm.title("Bekreft sletting")
-                w2, h2 = 400, 200
-                ws2, hs2 = confirm.winfo_screenwidth(), confirm.winfo_screenheight()
-                x2, y2 = (ws2 // 2) - (w2 // 2), (hs2 // 2) - (h2 // 2)
-                confirm.geometry(f"{w2}x{h2}+{x2}+{y2}")
-                ctk.CTkLabel(confirm, text=f"Er du sikker på at du vil slette klassen '{klasse}'?",
-                             font=("Segoe UI", 12)).pack(pady=20)
-                btn_frame = ctk.CTkFrame(confirm)
-                btn_frame.pack(pady=10)
-                def bekreft():
-                    fil = os.path.join(KLASSEMAPPE, f"{klasse}.json")
-                    if os.path.exists(fil):
-                        os.remove(fil)
-                    self.klasse_menu.configure(values=self.hent_klasser())
-                    if self.klasse == klasse:
-                        self.klasse = None
-                        self.navn_liste = []
-                        self.oppdater_listbox()
-                        self.tegn_hjul()
-                    status_label.configure(text=f"Klassen '{klasse}' slettet.")
-                    confirm.destroy()
-                    popup.destroy()
+                fil = os.path.join(KLASSEMAPPE, f"{klasse}.json")
+                if os.path.exists(fil):
+                    os.remove(fil)
+                self.klasse_menu.configure(values=self.hent_klasser())
+                if self.klasse == klasse:
+                    self.klasse = None
+                    self.navn_liste = []
+                    self.oppdater_listbox()
+                    self.tegn_hjul()
+            popup.destroy()
 
-                # Midtstilte knapper
-                ctk.CTkButton(btn_frame, text="Ja, slett", fg_color="red", command=bekreft).pack(side="left", padx=20)
-                ctk.CTkButton(btn_frame, text="Avbryt", command=confirm.destroy).pack(side="left", padx=20)
-
-        # Knapper for navn rett under lista
-        navn_button_frame = ctk.CTkFrame(popup)
-        navn_button_frame.pack(pady=5)
-        ctk.CTkButton(navn_button_frame, text="Legg til navn", command=legg_til).pack(side="left", padx=5)
-        ctk.CTkButton(navn_button_frame, text="Fjern valgt navn", command=fjern).pack(side="left", padx=5)
-
-        # Bunnramme med klasseknapper
+        # Bunnramme med knapper alltid synlig
         button_frame = ctk.CTkFrame(popup)
         button_frame.pack(side="bottom", pady=10)
+
+        ctk.CTkButton(button_frame, text="Legg til navn", command=legg_til).pack(side="left", padx=5)
+        ctk.CTkButton(button_frame, text="Fjern valgt navn", command=fjern).pack(side="left", padx=5)
         ctk.CTkButton(button_frame, text="Lagre klasse", command=lagre).pack(side="left", padx=5)
         ctk.CTkButton(button_frame, text="Slett klasse", fg_color="red", command=slett_klasse).pack(side="left", padx=5)
-
-        # Statusfelt nederst
-        status_label = ctk.CTkLabel(popup, text="", font=("Segoe UI", 11), text_color="lightgray")
-        status_label.pack(side="bottom", pady=5)
 
         popup.lift(); popup.focus_force(); popup.grab_set()
 
@@ -236,10 +217,13 @@ class SpinWheelGUI(ctk.CTk):
         self.tegn_hjul()
         self.result_label.configure(text=f"Klassen '{self.klasse}' ble reset.")
 
+    # ---------- GUI-funksjoner ----------
     def oppdater_listbox(self):
         self.listbox.delete(0, tk.END)
         for navn in self.navn_liste:
             self.listbox.insert(tk.END, navn)
+
+        # Hvis det bare er ett navn igjen, vis popup automatisk
         if len(self.navn_liste) == 1:
             self.siste_vinner = self.navn_liste[0]
             self.vis_siste_vinner(self.siste_vinner)
@@ -252,10 +236,14 @@ class SpinWheelGUI(ctk.CTk):
         angle_per_segment = 360 / num_segments
         center = self.canvas_size // 2
         radius = self.canvas_size // 2 - self.canvas_padding
-        colors = ["#BF616A", "#5E81AC", "#A3BE8C", "#EBCB8B", "#B48EAD",
-                  "#FF6F61", "#6A0572", "#00BFFF", "#FF1493", "#32CD32",
-                  "#FFA500", "#00CED1", "#FFD700", "#DC143C", "#8A2BE2",
-                  "#FF4500", "#7FFF00", "#40E0D0", "#FF69B4", "#1E90FF"]
+
+        colors = [
+            "#BF616A", "#5E81AC", "#A3BE8C", "#EBCB8B", "#B48EAD",
+            "#FF6F61", "#6A0572", "#00BFFF", "#FF1493", "#32CD32",
+            "#FFA500", "#00CED1", "#FFD700", "#DC143C", "#8A2BE2",
+            "#FF4500", "#7FFF00", "#40E0D0", "#FF69B4", "#1E90FF"
+        ]
+
         for i, navn in enumerate(self.navn_liste):
             start_angle = i * angle_per_segment + self.angle_offset
             color = colors[i % len(colors)]
@@ -270,12 +258,15 @@ class SpinWheelGUI(ctk.CTk):
             tx = center + (radius * 0.65) * math.cos(mid_rad)
             ty = center - (radius * 0.65) * math.sin(mid_rad)
             self.wheel_canvas.create_text(tx, ty, text=navn, font=("Segoe UI", 14, "bold"), fill="white")
+
         tip_y = self.canvas_padding + 30
         base_y = self.canvas_padding - 2
-        self.wheel_canvas.create_polygon(center, tip_y,
-                                         center - 15, base_y,
-                                         center + 15, base_y,
-                                         fill="red", outline="black", width=3)
+        self.wheel_canvas.create_polygon(
+            center, tip_y,
+            center - 15, base_y,
+            center + 15, base_y,
+            fill="red", outline="black", width=3
+        )
 
     def spinn_hjul(self):
         if self.spinning:
@@ -365,6 +356,7 @@ class SpinWheelGUI(ctk.CTk):
             self.oppdater_listbox()
             self.tegn_hjul()
 
+        # Hvis listen nå er tom, vis popup med siste vinner
         if not self.navn_liste and self.siste_vinner:
             self.vis_siste_vinner(self.siste_vinner)
 
@@ -391,7 +383,7 @@ class SpinWheelGUI(ctk.CTk):
             self.reset_klasse()
             popup.destroy()
 
-        reset_btn = ctk.CTkButton(popup, text="Reset hjulet", command=reset_og_lukk)
+        reset_btn = ctk.CTkButton(popup, text="Reset klasse", command=reset_og_lukk)
         reset_btn.pack(pady=20)
 
         popup.lift()

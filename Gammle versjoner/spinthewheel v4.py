@@ -7,7 +7,7 @@ KLASSEMAPPE = "klasser"
 class SpinWheelGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Spin the Wheel 🎡")
+        self.title("Spin the Wheel 🛞")
 
         # Mørkt tema
         ctk.set_appearance_mode("dark")

@@ -1,3 +1,20 @@
+import importlib
+import subprocess
+import sys
+
+# Sjekk og installer nødvendige pakker
+REQUIRED_PACKAGES = ["customtkinter"]
+
+def ensure_packages():
+    for pkg in REQUIRED_PACKAGES:
+        try:
+            importlib.import_module(pkg)
+        except ImportError:
+            print(f"Pakke '{pkg}' mangler. Installerer...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
+ensure_packages()
+
 import customtkinter as ctk
 import tkinter as tk
 import random, math, time, json, os
@@ -19,6 +36,7 @@ class SpinWheelGUI(ctk.CTk):
         self.navn_liste = []
         self.siste_vinner = None
         self.konfetti = []
+        self.spinning = False
 
         # Toppramme
         top_frame = ctk.CTkFrame(self, fg_color="#323333")
@@ -58,21 +76,24 @@ class SpinWheelGUI(ctk.CTk):
         self.result_label = ctk.CTkLabel(wheel_frame, text="", font=("Segoe UI", 20, "bold"), text_color="white")
         self.result_label.pack(pady=10)
 
-        ctk.CTkButton(wheel_frame, text="SPINN HJULET 🎉", command=self.spinn_hjul).pack(pady=10)
+        self.spin_button = ctk.CTkButton(wheel_frame, text="SPINN HJULET 🎉", command=self.spinn_hjul)
+        self.spin_button.pack(pady=10)
 
         self.canvas_size = 500
         self.canvas_padding = 20
-        self.canvas = tk.Canvas(wheel_frame,
-                                width=self.canvas_size,
-                                height=self.canvas_size,
-                                bg="#323333",          # samme som bakgrunn
-                                highlightthickness=0)  # fjerner lys ramme
-        self.canvas.pack(pady=10)
+
+        self.wheel_canvas = tk.Canvas(
+            wheel_frame,
+            width=self.canvas_size,
+            height=self.canvas_size,
+            bg="#323333",
+            highlightthickness=0
+        )
+        self.wheel_canvas.pack(expand=True)
 
         self.angle_offset = 0.0
         self.tegn_hjul()
 
-        # Sørg for at vinduet zoomes etter at alt er lastet
         self.after(100, lambda: self.state("zoomed"))
 
     # ---------- Klassehåndtering ----------
@@ -117,8 +138,13 @@ class SpinWheelGUI(ctk.CTk):
         for navn in self.navn_liste:
             self.listbox.insert(tk.END, navn)
 
+        # Hvis det bare er ett navn igjen, vis popup automatisk
+        if len(self.navn_liste) == 1:
+            self.siste_vinner = self.navn_liste[0]
+            self.vis_siste_vinner(self.siste_vinner)
+
     def tegn_hjul(self):
-        self.canvas.delete("all")
+        self.wheel_canvas.delete("all")
         if not self.navn_liste:
             return
         num_segments = len(self.navn_liste)
@@ -126,12 +152,17 @@ class SpinWheelGUI(ctk.CTk):
         center = self.canvas_size // 2
         radius = self.canvas_size // 2 - self.canvas_padding
 
-        colors = ["#BF616A", "#5E81AC", "#A3BE8C", "#EBCB8B", "#B48EAD"]
+        colors = [
+            "#BF616A", "#5E81AC", "#A3BE8C", "#EBCB8B", "#B48EAD",
+            "#FF6F61", "#6A0572", "#00BFFF", "#FF1493", "#32CD32",
+            "#FFA500", "#00CED1", "#FFD700", "#DC143C", "#8A2BE2",
+            "#FF4500", "#7FFF00", "#40E0D0", "#FF69B4", "#1E90FF"
+        ]
 
         for i, navn in enumerate(self.navn_liste):
             start_angle = i * angle_per_segment + self.angle_offset
             color = colors[i % len(colors)]
-            self.canvas.create_arc(
+            self.wheel_canvas.create_arc(
                 self.canvas_padding, self.canvas_padding,
                 self.canvas_size - self.canvas_padding, self.canvas_size - self.canvas_padding,
                 start=start_angle, extent=angle_per_segment,
@@ -141,16 +172,15 @@ class SpinWheelGUI(ctk.CTk):
             mid_rad = math.radians(mid_deg)
             tx = center + (radius * 0.65) * math.cos(mid_rad)
             ty = center - (radius * 0.65) * math.sin(mid_rad)
-            self.canvas.create_text(tx, ty, text=navn, font=("Segoe UI", 14, "bold"), fill="white")
+            self.wheel_canvas.create_text(tx, ty, text=navn, font=("Segoe UI", 14, "bold"), fill="white")
 
-        # Pil øverst
         tip_y = self.canvas_padding + 30
         base_y = self.canvas_padding - 2
-        self.canvas.create_polygon(
+        self.wheel_canvas.create_polygon(
             center, tip_y,
             center - 15, base_y,
             center + 15, base_y,
-            fill="#D08770", outline="black"
+            fill="red", outline="black", width=3
         )
 
     def legg_til_navn(self):
@@ -173,15 +203,27 @@ class SpinWheelGUI(ctk.CTk):
             self.tegn_hjul()
 
     def spinn_hjul(self):
+        if self.spinning:
+            return
         if not self.navn_liste:
             self.result_label.configure(text="Ingen navn på hjulet!")
             return
+
+        if len(self.navn_liste) == 1:
+            self.siste_vinner = self.navn_liste[0]
+            self.vis_siste_vinner(self.siste_vinner)
+            return
+
+        self.spinning = True
+        self.spin_button.configure(state="disabled")
+
         num_segments = len(self.navn_liste)
         self.angle_offset = random.uniform(0, 360)
         vinkel_hastighet = random.uniform(18, 28)
         friksjon = 0.98
         min_hastighet = 0.6
         ekstra = random.uniform(360, 1080)
+
         while vinkel_hastighet > min_hastighet or ekstra > 0:
             self.angle_offset = (self.angle_offset + vinkel_hastighet) % 360
             self.tegn_hjul()
@@ -200,39 +242,98 @@ class SpinWheelGUI(ctk.CTk):
         self.siste_vinner = vinner
         self.result_label.configure(text=f"🎉 Vinneren er: {vinner}!")
 
-        self.after(2000, self.fjern_vinner_automatisk)
+        # Start konfetti – spinneknapp forblir låst til fjerning er ferdig
+        self.vis_konfetti()
 
-    # ---------- Konfetti ----------
+    # ---------- Konfetti på wheel_canvas ----------
     def vis_konfetti(self):
+        for pid, *_ in self.konfetti:
+            self.wheel_canvas.delete(pid)
         self.konfetti = []
-        for _ in range(50):
-            x = random.randint(0, self.canvas_size)
-            y = 0
-            farge = random.choice(["#BF616A", "#EBCB8B", "#A3BE8C", "#5E81AC", "#B48EAD"])
-            r = random.randint(3, 8)
-            partikkel = self.canvas.create_oval(x-r, y-r, x+r, y+r, fill=farge, outline="")
-            self.konfetti.append((partikkel, random.uniform(1, 4)))
+
+        farger = ["#FFD166", "#EF476F", "#06D6A0", "#118AB2", "#FFFFFF", "#9C27B0", "#00E5FF"]
+
+        width = self.wheel_canvas.winfo_width()
+        height = self.wheel_canvas.winfo_height()
+
+        for _ in range(200):
+            x = random.randint(0, width)
+            y = random.randint(0, 40)
+            r = random.randint(3, 6)
+            farge = random.choice(farger)
+            pid = self.wheel_canvas.create_oval(x-r, y-r, x+r, y+r, fill=farge, outline="")
+            vx = random.uniform(-2, 2)
+            vy = random.uniform(2.0, 5.0)
+            gravity = random.uniform(0.05, 0.1)
+            self.konfetti.append([pid, vx, vy, gravity])
+
         self.animer_konfetti()
 
     def animer_konfetti(self):
-        ny_konfetti = []
-        for partikkel, fart in self.konfetti:
-            self.canvas.move(partikkel, 0, fart)
-            coords = self.canvas.coords(partikkel)
-            if coords and coords[1] < self.canvas_size:  # fortsatt synlig
-                ny_konfetti.append((partikkel, fart))
+        if not self.konfetti:
+            self.fjern_vinner_automatisk()
+            return
+
+        levende = []
+        height = self.wheel_canvas.winfo_height()
+        for pid, vx, vy, gravity in self.konfetti:
+            vy += gravity
+            self.wheel_canvas.move(pid, vx, vy)
+            coords = self.wheel_canvas.coords(pid)
+            if coords and coords[1] < height + 10:
+                levende.append([pid, vx, vy, gravity])
             else:
-                self.canvas.delete(partikkel)
-        self.konfetti = ny_konfetti
+                self.wheel_canvas.delete(pid)
+
+        self.konfetti = levende
         if self.konfetti:
-            self.after(30, self.animer_konfetti)
+            self.after(16, self.animer_konfetti)
+        else:
+            self.fjern_vinner_automatisk()
 
     def fjern_vinner_automatisk(self):
         if self.siste_vinner and self.siste_vinner in self.navn_liste:
             self.navn_liste.remove(self.siste_vinner)
             self.oppdater_listbox()
             self.tegn_hjul()
-            self.siste_vinner = None
+
+        # Hvis listen nå er tom, vis popup med siste vinner
+        if not self.navn_liste and self.siste_vinner:
+            self.vis_siste_vinner(self.siste_vinner)
+
+        self.siste_vinner = None
+        self.result_label.configure(text="")
+        self.spinning = False
+        self.spin_button.configure(state="normal")
+
+    # ---------- Popup for siste vinner ----------
+    def vis_siste_vinner(self, navn):
+        popup = ctk.CTkToplevel(self)
+        popup.title("Siste vinner")
+
+        # Sett størrelse og plasser midt på skjermen
+        w, h = 400, 200
+        ws = popup.winfo_screenwidth()
+        hs = popup.winfo_screenheight()
+        x = (ws // 2) - (w // 2)
+        y = (hs // 2) - (h // 2)
+        popup.geometry(f"{w}x{h}+{x}+{y}")
+
+        label = ctk.CTkLabel(popup, text=f"🎉 Siste vinner er: {navn} 🎉",
+                             font=("Segoe UI", 24, "bold"), text_color="white")
+        label.pack(pady=40)
+
+        def reset_og_lukk():
+            self.reset_klasse()
+            popup.destroy()
+
+        reset_btn = ctk.CTkButton(popup, text="Reset klasse", command=reset_og_lukk)
+        reset_btn.pack(pady=20)
+
+        # Sørg for at popupen havner foran og låser hovedvinduet
+        popup.lift()
+        popup.focus_force()
+        popup.grab_set()
 
     # ---------- Filhåndtering ----------
     def lagre_navn(self):
