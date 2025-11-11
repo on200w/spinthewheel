@@ -194,11 +194,6 @@ class SpinWheelGUI(ctk.CTk):
                 ctk.CTkButton(btn_frame, text="Ja, slett", fg_color="red", command=bekreft).pack(side="left", padx=20)
                 ctk.CTkButton(btn_frame, text="Avbryt", command=confirm.destroy).pack(side="left", padx=20)
 
-                # Sørg for at bekreftelsesvinduet ligger foran
-                confirm.lift()
-                confirm.focus_force()
-                confirm.grab_set()
-
         # Knapper for navn rett under lista
         navn_button_frame = ctk.CTkFrame(popup)
         navn_button_frame.pack(pady=5)

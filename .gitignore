@@ -1,0 +1,23 @@
+# Ignorer EXE-mappen
+EXE/
+
+# Ignorer Python cache og kompilerte filer
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorer build- og distribusjonsmapper
+build/
+dist/
+
+# Ignorer gamle versjoner og midlertidige mapper
+Gamle versjoner/
+Nyeste versjon/
+
+# Ignorer virtuelle miljøer
+venv/
+.env/
+
+# Ignorer loggfiler
+*.log
