@@ -44,7 +44,7 @@ class SpinWheelGUI(ctk.CTk):
         self.klasse_menu.pack(side="left", padx=5)
 
         ctk.CTkButton(top_frame, text="Administrer klasser", command=self.klasse_admin_vindu).pack(side="left", padx=5)
-        ctk.CTkButton(top_frame, text="Reset hjulet", command=self.reset_klasse).pack(side="left", padx=5)
+        ctk.CTkButton(top_frame, text="Tilbakestill hjulet", command=self.reset_klasse).pack(side="left", padx=5)
 
         main_frame = ctk.CTkFrame(self, fg_color="#323333")
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
@@ -75,10 +75,123 @@ class SpinWheelGUI(ctk.CTk):
         self.tegn_hjul()
         self.after(100, lambda: self.state("zoomed"))
 
+    # --- Hjelpefunksjoner (private) -------------------------------------------------
+    def _center_popup(self, popup, w, h, parent=None):
+        """Plasser `popup` sentrert over `parent` (eller skjermen hvis parent ikke er tilgjengelig).
+
+        popup: tkinter Toplevel
+        w, h: ønsket bredde/høyde i piksler
+        parent: widget å sentrere over (valgfri)
+        """
+        try:
+            if parent is None:
+                parent = self
+            parent_x = parent.winfo_rootx()
+            parent_y = parent.winfo_rooty()
+            parent_w = parent.winfo_width()
+            parent_h = parent.winfo_height()
+            if parent_w > 1 and parent_h > 1:
+                x = parent_x + (parent_w - w) // 2
+                y = parent_y + (parent_h - h) // 2
+            else:
+                ws, hs = popup.winfo_screenwidth(), popup.winfo_screenheight()
+                x, y = (ws // 2) - (w // 2), (hs // 2) - (h // 2)
+        except Exception:
+            ws, hs = popup.winfo_screenwidth(), popup.winfo_screenheight()
+            x, y = (ws // 2) - (w // 2), (hs // 2) - (h // 2)
+        popup.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _show_confirm(self, parent, title, message, on_confirm):
+        """Vis en enkel bekreftelsesdialog.
+
+        parent: widget å plassere dialogen over
+        title: vindustittel
+        message: meldingstekst
+        on_confirm: funksjon som kalles ved bekreftelse
+        Returns: confirm-toplevel
+        """
+        confirm = ctk.CTkToplevel(parent)
+        confirm.title(title)
+        w2, h2 = 500, 250
+        # sentrer over parent
+        self._center_popup(confirm, w2, h2, parent=parent)
+
+        ctk.CTkLabel(confirm, text=message, font=("Segoe UI", 14, "bold"),
+                     text_color="white", wraplength=450).pack(pady=30)
+
+        btn_frame = ctk.CTkFrame(confirm)
+        btn_frame.pack(pady=20)
+
+        def _ok():
+            try:
+                on_confirm()
+            finally:
+                confirm.destroy()
+
+        ctk.CTkButton(btn_frame, text="Ja, slett", fg_color="red", command=_ok).pack(side="left", padx=40)
+        ctk.CTkButton(btn_frame, text="Avbryt", command=confirm.destroy).pack(side="left", padx=40)
+
+        confirm.lift()
+        confirm.focus_force()
+        confirm.grab_set()
+        return confirm
+
+
+    def spinn_hjul(self):
+        # Non-blocking smooth spin using an ease-out cubic curve.
+        # We compute a total rotation over a randomized duration and animate
+        # using `after()` so the mainloop stays responsive and drawing is smooth.
+        if self.spinning:
+            return
+        if not self.navn_liste:
+            self.result_label.configure(text="Ingen navn på hjulet!")
+            return
+
+        self.result_label.configure(text="")
+        self.spinning = True
+        self.spin_button.configure(state="disabled")
+
+        # Spin parameters
+        self.start_angle = self.angle_offset % 360
+        self.spin_duration = random.uniform(3.0, 6.0)  # seconds
+        # total rotation in degrees (2-8 full turns) plus a small random offset
+        self.spin_total_rotation = random.uniform(720, 2880) + random.uniform(0, 360)
+        self.spin_start_time = time.time()
+
+        # Kick off the non-blocking animation
+        self._animate_spin()
+
+    def _animate_spin(self):
+        # Called repeatedly with after() until animation completes.
+        t = time.time() - self.spin_start_time
+        p = min(1.0, t / self.spin_duration)
+        # ease-out cubic: f(p) = 1 - (1-p)^3
+        eased = 1 - (1 - p) ** 3
+        self.angle_offset = (self.start_angle + self.spin_total_rotation * eased) % 360
+        self.tegn_hjul()
+
+        if p < 1.0:
+            # Aim for ~60 FPS updates
+            self.after(16, self._animate_spin)
+            return
+
+        # Animation finished — compute winner and show confetti
+        num_segments = len(self.navn_liste)
+        angle_per_segment = 360 / num_segments
+        pekevinkel = (90 - self.angle_offset) % 360
+        winning_index = int(pekevinkel // angle_per_segment) % num_segments
+        vinner = self.navn_liste[winning_index]
+        self.siste_vinner = vinner
+        self.result_label.configure(text=f"🎉 Vinneren er {vinner}!")
+        self.vis_konfetti()
+
+    # ... resten av klassen følger som tidligere (tegn_hjul, konfetti, klasse_admin_vindu, lagre/last osv.) ...
+
     def klasse_admin_vindu(self):
         popup = ctk.CTkToplevel(self)
         popup.title("Klasseadministrasjon")
         w, h = 500, 700
+        # Use screen-center for this admin window to avoid placing content under the taskbar
         ws, hs = popup.winfo_screenwidth(), popup.winfo_screenheight()
         x, y = (ws // 2) - (w // 2), (hs // 2) - (h // 2)
         popup.geometry(f"{w}x{h}+{x}+{y}")
@@ -148,12 +261,14 @@ class SpinWheelGUI(ctk.CTk):
             nytt_navn = klasse_entry.get().strip()
             if not nytt_navn:
                 return
+
             gammelt_navn = getattr(popup, "original_class_name", None)
             if gammelt_navn and nytt_navn != gammelt_navn:
                 gammel_fil = os.path.join(KLASSEMAPPE, f"{gammelt_navn}.json")
                 ny_fil = os.path.join(KLASSEMAPPE, f"{nytt_navn}.json")
                 if os.path.exists(gammel_fil):
                     os.rename(gammel_fil, ny_fil)
+
             self.klasse = nytt_navn
             self.klasse_var.set(nytt_navn)
             self.navn_liste = list(navn_listbox.get(0, tk.END))
@@ -167,18 +282,7 @@ class SpinWheelGUI(ctk.CTk):
         def slett_klasse():
             klasse = klasse_entry.get().strip()
             if klasse:
-                confirm = ctk.CTkToplevel(popup)
-                confirm.title("Bekreft sletting")
-                w2, h2 = 500, 250
-                ws2, hs2 = confirm.winfo_screenwidth(), confirm.winfo_screenheight()
-                x2, y2 = (ws2 // 2) - (w2 // 2), (hs2 // 2) - (h2 // 2)
-                confirm.geometry(f"{w2}x{h2}+{x2}+{y2}")
                 msg = f"Er du sikker på at du vil slette klassen '{klasse}'?"
-                ctk.CTkLabel(confirm, text=msg, font=("Segoe UI", 14, "bold"),
-                             text_color="white", wraplength=450).pack(pady=30)
-
-                btn_frame = ctk.CTkFrame(confirm)
-                btn_frame.pack(pady=20)
 
                 def bekreft():
                     fil = os.path.join(KLASSEMAPPE, f"{klasse}.json")
@@ -191,17 +295,10 @@ class SpinWheelGUI(ctk.CTk):
                         self.oppdater_listbox()
                         self.tegn_hjul()
                     status_label.configure(text=f"Klassen '{klasse}' slettet.")
-                    confirm.destroy()
                     popup.destroy()
 
-                ctk.CTkButton(btn_frame, text="Ja, slett", fg_color="red",
-                              command=bekreft).pack(side="left", padx=40)
-                ctk.CTkButton(btn_frame, text="Avbryt",
-                              command=confirm.destroy).pack(side="left", padx=40)
-
-                confirm.lift()
-                confirm.focus_force()
-                confirm.grab_set()
+                # Vis bekreftelsesdialog (sentrert over popup)
+                self._show_confirm(popup, "Bekreft sletting", msg, bekreft)
 
         navn_button_frame = ctk.CTkFrame(popup)
         navn_button_frame.pack(pady=5)
@@ -242,7 +339,7 @@ class SpinWheelGUI(ctk.CTk):
         self.navn_liste = self.last_navn(self.klasse)
         self.oppdater_listbox()
         self.tegn_hjul()
-        self.result_label.configure(text=f"Klassen '{self.klasse}' ble reset.")
+        self.result_label.configure(text=f"Hjulet ble tilbakestilt.")
 
     def oppdater_listbox(self):
         self.listbox.delete(0, tk.END)
@@ -285,38 +382,7 @@ class SpinWheelGUI(ctk.CTk):
                                          center + 15, base_y,
                                          fill="red", outline="black", width=3)
 
-    def spinn_hjul(self):
-        if self.spinning:
-            return
-        if not self.navn_liste:
-            self.result_label.configure(text="Ingen navn på hjulet!")
-            return
-
-        self.result_label.configure(text="")
-        self.spinning = True
-        self.spin_button.configure(state="disabled")
-
-        num_segments = len(self.navn_liste)
-        self.angle_offset = random.uniform(0, 360)
-        vinkel_hastighet = random.uniform(25, 35)  # startfart
-        min_hastighet = 0.15  # terskel for stopp
-
-        while vinkel_hastighet > min_hastighet:
-            self.angle_offset = (self.angle_offset + vinkel_hastighet) % 360
-            self.tegn_hjul()
-            self.update()
-            time.sleep(0.015)
-
-            vinkel_hastighet *= 0.98  # jevn nedbremsing
-
-        angle_per_segment = 360 / num_segments
-        pekevinkel = (90 - self.angle_offset) % 360
-        winning_index = int(pekevinkel // angle_per_segment) % num_segments
-
-        vinner = self.navn_liste[winning_index]
-        self.siste_vinner = vinner
-        self.result_label.configure(text=f"🎉 Vinneren er: {vinner}!")
-        self.vis_konfetti()
+    # Previous blocking spin implementation removed — animation now handled by _animate_spin()
 
     def vis_konfetti(self):
         for pid, *_ in self.konfetti:
@@ -341,6 +407,7 @@ class SpinWheelGUI(ctk.CTk):
         if not self.konfetti:
             self.fjern_vinner_automatisk()
             return
+
         levende = []
         height = self.wheel_canvas.winfo_height()
         for pid, vx, vy, gravity in self.konfetti:
@@ -351,6 +418,7 @@ class SpinWheelGUI(ctk.CTk):
                 levende.append([pid, vx, vy, gravity])
             else:
                 self.wheel_canvas.delete(pid)
+
         self.konfetti = levende
         if self.konfetti:
             self.after(16, self.animer_konfetti)
@@ -375,12 +443,9 @@ class SpinWheelGUI(ctk.CTk):
         popup.title("Siste vinner")
 
         w, h = 400, 200
-        ws, hs = popup.winfo_screenwidth(), popup.winfo_screenheight()
-        x = (ws // 2) - (w // 2)
-        y = (hs // 2) - (h // 2)
-        popup.geometry(f"{w}x{h}+{x}+{y}")
+        self._center_popup(popup, w, h, parent=self)
 
-        label = ctk.CTkLabel(popup, text=f"🎉 Siste vinner er: {navn} 🎉",
+        label = ctk.CTkLabel(popup, text=f"🎉 Siste vinner er {navn} 🎉",
                              font=("Segoe UI", 24, "bold"), text_color="white")
         label.pack(pady=40)
 
