@@ -10,11 +10,6 @@ Denne README-en er skrevet for å ligge på GitHub — den forklarer funksjoner,
 - Ikke-blokkerende, jevn animasjon ved spinning (ease-out).
 - Konfetti-animasjon når vinneren er valgt.
 - Administrasjon av klasser / lister av navn (lagre/last som JSON i `klasser/`).
-- Enkelt å pakke til en exe (det finnes en `EXE/bygg exe/` med hjelpe-batfiler i repoen).
-
-## Skjermbilder
-
-Se `screenshot.png` eller ta skjermdump fra programmet og legg i repoet for visning på GitHub (ikke inkludert i dette repo-klippet).
 
 ## Funksjoner (kort)
 
@@ -26,7 +21,6 @@ Se `screenshot.png` eller ta skjermdump fra programmet og legg i repoet for visn
 ## Filstruktur (viktigste filer)
 
 - `Nyeste versjon/spinthewheel.py` — hovedapplikasjonen (GUI).
-- `EXE/bygg exe/bygg exe.bat` — hjelpe-skript for å lage en kjørbar (eks. med PyInstaller).
 - `klasser/` — mappe hvor hver klasse lagres som `Klassenavn.json`.
 
 ## Krav
@@ -64,43 +58,4 @@ python "Nyeste versjon\spinthewheel.py"
 - Popup-vindu og oppgavelinje: Hvis du opplever at admin-vinduet vises delvis under Windows oppgavelinje (taskbar), bruk mellombar løsning: maksimer eller flytt hovedvinduet før du åpner admin-vinduet, eller bruk prosjektets `klasse_admin_vindu` (som standard sentrerer vinduet på skjermen for å unngå dette problemet).
 - Hvis animasjonen hakker: prøv å kjøre på en maskin uten tung bakgrunnsprosess, eller reduser `canvas_size` i koden for mindre pikselarbeid.
 
-## Pakk som kjørbar (.exe)
 
-Eksempel med PyInstaller (anbefales å bruke en virtuell env):
-
-```powershell
-pip install pyinstaller
-pyinstaller --noconsole --onefile "Nyeste versjon\spinthewheel.py"
-```
-
-Merk: det finnes allerede en `EXE/bygg exe/bygg exe.bat` i repoen som kan brukes som utgangspunkt.
-
-## Utvikling og bidrag
-
-Alle bidrag er velkomne. Forslag til forbedringer:
-
-- Trekke ut klasse-administrasjonslogikk til egen modul for enklere testing.
-- Legge til mulighet for differentierte vekter (sannsynlighet) per navn.
-- Eksport/import av klasser via UI.
-
-Hvordan bidra:
-
-1. Fork repoet
-2. Lag feature-branch
-3. Opprett PR med beskrivelse av endringene
-
-## Lisens
-
-Velg en lisens for prosjektet (f.eks. MIT) og legg til en `LICENSE`-fil hvis du vil gjøre koden åpen for andre.
-
-## Kontakt
-
-For spørsmål eller hjelp: legg igjen en issue i repoet.
-
-----
-
-Hvis du vil, kan jeg også:
-- Lage en kort `CONTRIBUTING.md` med retningslinjer for PRs.
-- Legge til en pen `README`-screenshot og en `LICENSE`-fil (f.eks. MIT).
-
-Sier du til hvilke av disse du vil ha, så legger jeg dem til også.
