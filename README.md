@@ -46,6 +46,8 @@ Kjør programmet:
 python "Nyeste versjon\spinthewheel.py"
 ```
 
+Alternativt (Windows) kan du dobbeltklikke på `start spinthewheel.bat` som ligger i `Nyeste versjon/` for å starte programmet uten å åpne kommandolinjen.
+
 ## Hvordan bruke
 
 1. Velg eller opprett en klasse i `Administrer klasser`.
